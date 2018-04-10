@@ -1,0 +1,59 @@
+# Important variables for Cultivar level 1
+rf_lvl_1 <- ggplot(data = wine_data) + geom_point( aes(x = Proline, y = Alcohol, 
+                                                       colour = Cultivar), size = 2, alpha = 1, shape = 15) +
+        xlab("Proline") +
+        ylab("Alcohol") +
+        ggtitle("Random Forest - Important Variables: Cultivar 1") 
+
+rf_lvl_1 + theme(legend.position = "bottom")
+
+rf_lvl_1_bad <- ggplot(data = wine_data) + geom_point( aes(x = Nonflavanoid_phenols, y = Ash, 
+                                                           colour = Cultivar), size = 2, alpha = 1, shape = 15) +
+        xlab("Nonflavanoid_phenols") +
+        ylab("Ash") +
+        ggtitle("Random Forest - Non - Important Variables: Cultivar 1") 
+
+rf_lvl_1_bad + theme(legend.position = "bottom")
+
+# Important variables for Cultivar level 2
+rf_lvl_2 <- ggplot(data = wine_data) + geom_point( aes(x = Proline, y = Flavanoids, 
+                                                       colour = Cultivar), size = 2, alpha = 1, shape = 15) +
+        xlab("Proline") +
+        ylab("Flavanoids") +
+        ggtitle("Random Forest - Important Variables: Cultivar 2") 
+
+rf_lvl_2 + theme(legend.position = "bottom")
+
+# Important variables for Cultivar level 3
+rf_lvl_3 <- ggplot(data = wine_data) + geom_point(aes(x = Flavanoids, y = Color_intensity, 
+                                                      colour = Cultivar), size = 2, alpha = 1, shape = 15) +
+        xlab("Flavanoids") +
+        ylab("Color Intensity") +
+        ggtitle("Random Forest - Important Variables: Cultivar 3") 
+
+rf_lvl_3 + theme(legend.position = "bottom")
+
+# Scale the data to have mean of 0 and sd of 1
+wine_data_scale <- as.data.frame(scale(wine_data[-1]))
+wine_data_scale$Cultivar <- wine_data$Cultivar
+
+# Important variables for Cultivar levels 1,2 and 3
+lvl_all <- ggplot(data = wine_data_scale) + geom_point(aes(x = Proline, y = Alcohol, 
+                                                           colour = Cultivar), size = 2, alpha = 1, shape = 15) +
+        geom_point(aes(x = Proline, y = Color_intensity, 
+                       colour = Cultivar), size = 2, alpha = 1, shape = 16) +
+        geom_point(aes(x = Flavanoids, y = Color_intensity, 
+                       colour = Cultivar), size = 2, alpha = 1, shape = 17) +
+        xlab("Proline and Flavanoids") +
+        ylab("Alcohol and Color Intensity") +
+        ggtitle("Random Forest - Important Variables: Levels 1, 2 and 3") 
+
+lvl_all + theme(legend.position = "none")
+
+
+
+# Annotating a filled contour plot
+a <- expand.grid(1:20, 1:20, 1:20)
+b <- matrix(a[,1] + a[,2], 20)
+filled.contour(x = 1:20, y = 1:20, z = b,
+               plot.axes={ axis(1); axis(2); points(10,10) })

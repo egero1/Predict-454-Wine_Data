@@ -1,0 +1,445 @@
+library(lattice)
+library(rpart)
+library(rpart.plot)
+library(corrplot)
+library(caret)
+library(pROC)
+library(e1071)
+
+#setwd("~/Desktop/Predict 454/Assignment 3")
+
+print_plot_panel_6 <- function(plots) {
+        print(plots[[1]], split = c(1, 1, 3, 2), more = TRUE)
+        print(plots[[2]], split = c(2, 1, 3, 2), more = TRUE)
+        print(plots[[3]], split = c(3, 1, 3, 2), more = TRUE)
+        
+        print(plots[[4]], split = c(1, 2, 3, 2), more = TRUE)
+        print(plots[[5]], split = c(2, 2, 3, 2), more = TRUE)
+        print(plots[[6]], split = c(3, 2, 3, 2), more = FALSE)
+}
+
+# Function to calculate ratesn
+table_rates <- function(cmatrix) {
+        TN <- paste(cmatrix[1,1], round(cmatrix[1,1]/ (cmatrix[1,1] + cmatrix[2,1]) * 100, 2), sep = " : ")
+        FP <- paste(cmatrix[1,2], round(cmatrix[1,2]/ (cmatrix[1,2] + cmatrix[2,2]) * 100, 2), sep = " : ")
+        FN <- paste(cmatrix[2,1], round(cmatrix[2,1]/ (cmatrix[2,1] + cmatrix[1,1]) * 100, 2), sep = " : ")
+        TP <- paste(cmatrix[2,2], round(cmatrix[2,2]/ (cmatrix[2,2] + cmatrix[1,2]) * 100, 2), sep = " : ")
+        return(matrix(c(TN, FN, FP, TP), nrow = 2, ncol = 2))
+}
+
+## Load and prepare data
+#spam = read.csv("/Users/ericgero/Desktop/Predict 454/Assignment 3/spambase.data", header = FALSE, sep = ",")
+spam = read.csv("C:/Users/200019450/Desktop/Assignment 3/spambase.data", header = FALSE, sep = ",")
+col.names <- c("word_freq_make",         
+               "word_freq_address",      
+               "word_freq_all",          
+               "word_freq_3d",           
+               "word_freq_our",          
+               "word_freq_over",         
+               "word_freq_remove",       
+               "word_freq_internet",     
+               "word_freq_order",        
+               "word_freq_mail",         
+               "word_freq_receive",      
+               "word_freq_will",         
+               "word_freq_people",       
+               "word_freq_report",       
+               "word_freq_addresses",    
+               "word_freq_free",         
+               "word_freq_business",     
+               "word_freq_email",        
+               "word_freq_you",          
+               "word_freq_credit",       
+               "word_freq_your",         
+               "word_freq_font",         
+               "word_freq_000",          
+               "word_freq_money",        
+               "word_freq_hp",           
+               "word_freq_hpl",          
+               "word_freq_george",       
+               "word_freq_650",          
+               "word_freq_lab",          
+               "word_freq_labs",         
+               "word_freq_telnet",       
+               "word_freq_857",          
+               "word_freq_data",         
+               "word_freq_415",          
+               "word_freq_85",           
+               "word_freq_technology",   
+               "word_freq_1999",         
+               "word_freq_parts",        
+               "word_freq_pm",           
+               "word_freq_direct",       
+               "word_freq_cs",           
+               "word_freq_meeting",      
+               "word_freq_original",     
+               "word_freq_project",      
+               "word_freq_re",           
+               "word_freq_edu",          
+               "word_freq_table",        
+               "word_freq_conference",   
+               "char_freq_;",            
+               "char_freq_(",            
+               "char_freq_[",            
+               "char_freq_!",            
+               "char_freq_$",            
+               "char_freq_#",            
+               "capital_run_length_average", 
+               "capital_run_length_longest", 
+               "capital_run_length_total",
+               "spam_indicator")   
+
+# Set column names
+colnames(spam) <- col.names
+
+# Cast response as a factor
+spam$spam_indicator <- as.factor(spam$spam_indicator)
+
+# Set factor variable levels
+levels(spam$spam_indicator) = c("Not_Spam", "Spam")
+
+## Data Quality Check
+
+# Review the class for each variable
+sapply(spam, class)
+
+# Get summary info for the data set
+dim(spam)
+summary(spam)
+
+# Check for NAs or missing values
+colSums(is.na(spam))[colSums(is.na(spam)) > 0]
+
+# Review distribution of response variable
+histogram(~ spam_indicator, data = spam, main = "Spam Indicator")
+
+# needed?
+bwplot(~spam$word_freq_make, data = spam)
+###
+
+# Review means
+means <- lapply(spam[1:57], mean)
+as.data.frame(table(spam$capital_run_length_total))
+
+for (i in 1:57) {
+  print(histogram(~spam[i], data = spam, xlab = "", main = paste0(colnames(spam)[i])))
+}
+
+for (i in 1:57) {
+  print(densityplot(~spam[i], data = spam, xlab = "", main = paste0(colnames(spam)[i])))
+}
+
+for (i in 1:57) {
+  print(bwplot(~spam[i] | spam_indicator, data = spam, xlab = "", main = paste0(colnames(spam)[i])))
+}
+
+## Exploratory Data Analysis
+# review the histograms by spam_indicator
+for (i in 1:57) {
+        print(histogram(~spam[i] | spam$spam_indicator, data = spam, xlab = "", main = paste0(colnames(spam)[i])))
+}
+
+# review the density plots by spam_indicator
+for (i in 1:57) {
+        print(densityplot(~ spam[i], groups = spam$spam_indicator, data = spam, xlab = "", main = paste0(colnames(spam)[i]), auto.key = TRUE, plot.points = FALSE))
+}
+
+# review the box plots by spam_indicator
+for (i in 1:57) {
+        print(bwplot(~spam[i] | spam$spam_indicator, data = spam, xlab = "", main = paste0(colnames(spam)[i])))
+}
+ 
+# plots of log1p
+# review the box plots by spam_indicator
+for (i in 1:57) {
+        print(histogram(~ log_spam[i] | spam$spam_indicator, data = spam, xlab = "", main = paste0(colnames(spam)[i])))
+}
+
+for (i in 1:57) {
+        print(bwplot(~ log_spam[i] | spam$spam_indicator, data = spam, xlab = "", main = paste0(colnames(spam)[i])))
+}
+
+# Naive decision tree
+tree <- rpart(spam_indicator ~ ., data = spam)
+rpart.plot(tree)
+
+# Compare predictions
+table(prediction = predict(tree, type = "class"), truth = spam$spam_indicator)
+
+## Model Build
+# Fix column names - some methods do not like !, $, (, or [
+spam2 <- spam
+names(spam2)[49] <- "char_freq_sc"
+names(spam2)[50] <- "char_freq_lp"
+names(spam2)[51] <- "char_freq_lb"  
+names(spam2)[52] <- "char_freq_ex"
+names(spam2)[53] <- "char_freq_dol"
+names(spam2)[54] <- "char_freq_hash"
+
+# Create training and test data sets
+set.seed(123)
+trainIndex <- createDataPartition(spam2$spam_indicator, p = 0.70, list = FALSE)
+
+train <- spam2[trainIndex,]
+test <- spam2[-trainIndex,]
+
+# Apply log(1 + x) transformation on predictors
+log_spam = lapply(spam2[1:57], log1p)
+log_spam = data.frame(log_spam, spam_indicator = spam2$spam_indicator)
+
+log_train <- log_spam[trainIndex,]
+log_test <- log_spam[-trainIndex,]
+
+spam_dist <- sum(spam2$spam_indicator == "Spam")/nrow(spam2)
+train_dist <- sum(train$spam_indicator == "Spam")/nrow(train)
+test_dist <- sum(test$spam_indicator == "Spam")/nrow(test)
+log_train_dist <- sum(log_train$spam_indicator == "Spam")/nrow(log_train)
+log_test_dist <- sum(log_test$spam_indicator == "Spam")/nrow(log_test)
+
+## Logistic regression using variable selection
+# Model 1A
+fitControl <- trainControl(method = "none", 
+                           classProbs = TRUE)
+
+set.seed(123)
+glm <- train(spam_indicator ~ ., 
+             data = train, 
+             method = "glmStepAIC", 
+             direction = "backward", 
+             trControl = fitControl)
+
+# Summary
+glm$finalModel
+
+# Training set predictions for roc
+glm_pred_train_probs <- predict(glm, train, type = "prob")
+
+# Create ROC curve
+train_roc <- roc(response = train$spam_indicator, predictor = glm_pred_train_probs[,2])
+
+# Plot ROC curve
+plot(train_roc, col = "blue", main = paste0("ROC Curve for Model 1 (GLM): AUC ", round(train_roc$auc[1], 4)))
+
+# Create the confusion matrix
+glm_pred_train <- predict(glm, train)
+confusionMatrix(data = glm_pred_train, train$spam_indicator, positive = "Spam")
+confusionMatrix(data = glm_pred_train, train$spam_indicator, positive = "Spam")$overall
+table_rates(table(glm_pred_train, train$spam_indicator))
+
+# test set predictions
+glm_pred_test <- predict(glm, test)
+confusionMatrix(data = glm_pred_test, test$spam_indicator, positive = "Spam")
+confusionMatrix(data = glm_pred_test, test$spam_indicator, positive = "Spam")$overall
+table_rates(table(glm_pred_test, test$spam_indicator))
+
+# Log transformation
+fitControl <- trainControl(method = "none", 
+                           classProbs = TRUE)
+
+set.seed(123)
+glm_log <- train(spam_indicator ~ ., 
+                 data = log_train, 
+                 method = "glmStepAIC", 
+                 direction = "backward", 
+                 trControl = fitControl)
+
+# Summary
+glm_log$finalModel
+length(glm_log$finalModel$coefficients)-1
+
+# training set predictions for roc
+log_pred_train_probs <- predict(glm_log, log_train, type = "prob")
+
+# Create ROC curve
+log_train_roc <- roc(response = log_train$spam_indicator, predictor = log_pred_train_probs[,2])
+
+# Plot ROC curve
+plot(log_train_roc, col = "blue", main = paste0("ROC Curve for Model 1 ( LOG GLM): AUC ", round(log_train_roc$auc[1], 4)))
+
+# Create the confusion matrix
+log_pred_train <- predict(glm_log, log_train)
+confusionMatrix(data = log_pred_train, log_train$spam_indicator, positive = "Spam")
+confusionMatrix(data = log_pred_train, log_train$spam_indicator, positive = "Spam")$overall
+table_rates(table(log_pred_train, log_train$spam_indicator))
+
+# test set predictions
+log_pred_test <- predict(glm_log, log_test)
+confusionMatrix(data = log_pred_test, log_test$spam_indicator, positive = "Spam")
+confusionMatrix(data = log_pred_test, log_test$spam_indicator, positive = "Spam")$overall
+table_rates(table(log_pred_test, log_test$spam_indicator))
+
+# Tree model
+fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 3, classProbs = TRUE, savePredictions = TRUE)
+#library(rattle)
+
+# Model 2A
+set.seed(123)
+tree <- train(spam_indicator ~ .,
+              data = train,
+              method = "rpart1SE",
+              trControl = fitControl,
+              metric = "Accuracy",
+              parms = list(split = "information"))
+
+#fancyRpartPlot(tree$finalModel, sub = "Spam: Tree")
+
+# Summary
+tree$finalModel
+
+# Training set predictions for roc
+tree_pred_train_probs <- predict(tree, train, type = "prob")
+
+# Create ROC curve
+tree_train_roc <- roc(response = train$spam_indicator, predictor = tree_pred_train_probs[,2])
+
+# Plot ROC curve
+plot(tree_train_roc, col = "blue", main = paste0("ROC Curve for Model 2 (Tree): AUC ", round(tree_train_roc$auc[1], 4)))
+
+# Create the confusion matrix
+tree_pred_train <- predict(tree, train)
+confusionMatrix(data = tree_pred_train, train$spam_indicator, positive = "Spam")
+confusionMatrix(data = tree_pred_train, train$spam_indicator, positive = "Spam")$overall
+table_rates(table(tree_pred_train, train$spam_indicator))
+
+# test set predictions
+tree_pred_test <- predict(tree, test)
+confusionMatrix(data = tree_pred_test, test$spam_indicator, positive = "Spam")
+confusionMatrix(data = tree_pred_test, test$spam_indicator, positive = "Spam")$overall
+table_rates(table(tree_pred_test, test$spam_indicator))
+
+# Tree model - with log transformations
+fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 3, classProbs = TRUE, savePredictions = TRUE)
+
+# Fit the tree model
+set.seed(123)
+tree_log <- train(spam_indicator ~ .,
+                  data = log_train,
+                  method = "rpart1SE",
+                  trControl = fitControl,
+                  metric = "Accuracy",
+                  parms = list(split = "information"))
+
+#fancyRpartPlot(tree_log$finalModel, sub= "Spam: Tree - Log Transformation")
+
+# Summary
+tree_log$finalModel
+
+# Training set predictions for roc
+tl_pred_train_probs <- predict(tree_log, log_train, type = "prob")
+
+# Create ROC curve
+tl_train_roc <- roc(response = log_train$spam_indicator, predictor = tl_pred_train_probs[,2])
+
+# Plot ROC curve
+plot(tl_train_roc, col = "blue", main = paste0("ROC Curve for Model 2 (Log Tree): AUC ", round(tl_train_roc$auc[1], 4)))
+
+# Create the confusion matrix
+tl_pred_train <- predict(tree_log, train)
+confusionMatrix(data = tl_pred_train, log_train$spam_indicator, positive = "Spam")
+confusionMatrix(data = tl_pred_train, log_train$spam_indicator, positive = "Spam")$overall
+table_rates(table(tl_pred_train, log_train$spam_indicator))
+
+# test set predictions
+tl_pred_test <- predict(tree_log, test)
+confusionMatrix(data = tl_pred_test, log_test$spam_indicator, positive = "Spam")
+confusionMatrix(data = tl_pred_test, log_test$spam_indicator, positive = "Spam")$overall
+table_rates(table(tl_pred_test, log_test$spam_indicator))
+
+## Support Vector Machine
+# Model 3A
+esvm <- svm(spam_indicator ~ ., data = train, method="C-classification", 
+            kernel = "radial", cross = 10, probability = TRUE)
+
+# Summary
+esvm
+
+# Get predictions from training set and extract probabilities
+svm_train_probs <- predict(esvm, train, probability = TRUE, decision.values = TRUE)
+svm_train_probs <- attr(svm_train_probs, "prob")[,1] 
+
+# Create ROC curve
+svm_train_roc <- roc(response = train$spam_indicator, predictor = svm_train_probs)
+
+# Plot ROC curve
+plot(svm_train_roc, col = "blue", main = paste0("ROC Curve for Model 3 (SVM): AUC ", round(svm_train_roc$auc[1], 4)))
+
+# Create the confusion matrix
+svm_pred_train <- predict(esvm, train)
+confusionMatrix(data = svm_pred_train, train$spam_indicator, positive = "Spam")
+confusionMatrix(data = svm_pred_train, train$spam_indicator, positive = "Spam")$overall
+table_rates(table(svm_pred_train, train$spam_indicator))
+
+# test set predictions
+svm_pred_test <- predict(esvm, test)
+confusionMatrix(data = svm_pred_test, test$spam_indicator, positive = "Spam")
+confusionMatrix(data = svm_pred_test, test$spam_indicator, positive = "Spam")$overall
+table_rates(table(svm_pred_test, test$spam_indicator))
+
+# SVM with log transformations
+esvm_log <- svm(spam_indicator ~ ., data = log_train, method="C-classification", 
+                kernel = "radial", cross = 10, probability = TRUE)
+
+# Summary
+esvm_log
+
+# Get predictions from training set and extract probabilities
+lsvm_train_probs <- predict(esvm_log, log_train, probability = TRUE, decision.values = TRUE)
+lsvm_train_probs <- attr(lsvm_train_probs, "prob")[,1] 
+
+# Create ROC curve
+lsvm_train_roc <- roc(response = log_train$spam_indicator, predictor = lsvm_train_probs)
+
+# Plot ROC curve
+plot(lsvm_train_roc, col = "blue", main = paste0("ROC Curve for Model 3 (Log SVM): AUC ", round(lsvm_train_roc$auc[1], 4)))
+
+# Create the confusion matrix
+lsvm_pred_train <- predict(esvm_log, log_train)
+confusionMatrix(data = lsvm_pred_train, log_train$spam_indicator, positive = "Spam")
+confusionMatrix(data = lsvm_pred_train, log_train$spam_indicator, positive = "Spam")$overall
+table_rates(table(lsvm_pred_train, log_train$spam_indicator))
+
+# test set predictions
+lsvm_pred_test <- predict(esvm_log, log_test)
+confusionMatrix(data = lsvm_pred_test, log_test$spam_indicator, positive = "Spam")
+confusionMatrix(data = lsvm_pred_test, log_test$spam_indicator, positive = "Spam")$overall
+table_rates(table(lsvm_pred_test, log_test$spam_indicator))
+
+## Random Forest
+fitControl = trainControl(method = "cv", classProbs = TRUE)
+
+# Model 4
+set.seed(123)
+rf <- train(spam_indicator ~ .,
+             data = train,
+             method = "rf",
+             trControl = fitControl)
+
+# Summary
+rf$finalModel
+vars <- varImp(rf$finalModel)
+plot(varImp(rf), main = "Variable Importance - Random Forest")
+
+# Training set predictions for roc
+rf_pred_train_probs <- predict(rf, train, type = "prob")
+
+# Create ROC curve
+rf_train_roc <- roc(response = train$spam_indicator, predictor = rf_pred_train_probs[,2])
+
+# Plot ROC curve
+plot(rf_train_roc, col = "blue", main = paste0("ROC Curve for Model 4 (Random Forest): AUC ", round(rf_train_roc$auc[1], 4)))
+
+# Create the confusion matrix
+rf_pred_train <- predict(rf, train)
+confusionMatrix(data = rf_pred_train, train$spam_indicator, positive = "Spam")
+confusionMatrix(data = rf_pred_train, train$spam_indicator, positive = "Spam")$overall
+table_rates(table(rf_pred_train, train$spam_indicator))
+
+# test set predictions
+rf_pred_test <- predict(rf, test)
+confusionMatrix(data = rf_pred_test, test$spam_indicator, positive = "Spam")
+confusionMatrix(data = rf_pred_test, test$spam_indicator, positive = "Spam")$overall
+table_rates(table(rf_pred_test, test$spam_indicator))
+
+
+
+

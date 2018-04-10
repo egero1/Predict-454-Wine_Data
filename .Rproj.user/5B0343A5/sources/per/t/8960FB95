@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1509769996821.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "8960FB95",
+    "lastKnownWriteTime" : 8247609678280785926,
+    "last_content_update" : 1509769996821,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "id" : "95d3fd288ffd401f8d4d1df6f2bfa2b5",
+        "name" : "wine_svm",
+        "title" : "wine_svm"
+    },
+    "relative_order" : 7,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "object_explorer"
+}
